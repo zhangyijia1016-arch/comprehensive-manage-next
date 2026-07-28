@@ -1,0 +1,90 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAFF"/>
+      <stop offset="1" stop-color="#EEF5FF"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="250" y1="120" x2="950" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEF7FF"/>
+    </linearGradient>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="2000" height="1200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#94A3B8" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft" x="0" y="0" width="2000" height="1200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#CBD5E1" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="980" fill="url(#bg)"/>
+  <circle cx="1420" cy="100" r="180" fill="#DCEEFF" opacity="0.55"/>
+  <circle cx="180" cy="900" r="200" fill="#E7F5FF" opacity="0.7"/>
+  <rect x="28" y="28" width="1544" height="924" rx="30" fill="#FCFEFF" filter="url(#shadow)"/>
+  <rect x="64" y="64" width="1472" height="72" rx="22" fill="#FFFFFF"/>
+  <rect x="86" y="84" width="44" height="44" rx="14" fill="url(#iconBg)"/>
+  <text x="152" y="110" fill="#0F172A" font-size="28" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">综测智能体 / 填报小助手</text>
+  <text x="152" y="130" fill="#64748B" font-size="14" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">帮助学生更快理解综测规则、材料要求与审核逻辑</text>
+  <rect x="1282" y="82" width="102" height="36" rx="18" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="1314" y="105" fill="#334155" font-size="16" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">换一换</text>
+  <rect x="1398" y="82" width="90" height="36" rx="18" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="1430" y="105" fill="#334155" font-size="16" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">设置</text>
+  <rect x="64" y="158" width="1042" height="170" rx="28" fill="url(#hero)" stroke="#E6F0FF" filter="url(#soft)"/>
+  <rect x="92" y="188" width="124" height="34" rx="17" fill="#E8F2FF"/>
+  <text x="116" y="210" fill="#2563EB" font-size="15" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="600">填报助手已就位</text>
+  <text x="92" y="268" fill="#111827" font-size="46" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="800">看懂规则，也帮你干活。</text>
+  <text x="92" y="316" fill="#64748B" font-size="22" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">支持综测规则解读、材料梳理、问题定位和填报建议，后续可接入流式输出与知识库检索。</text>
+  <text x="66" y="374" fill="#64748B" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">推荐问题</text>
+  <rect x="64" y="392" width="502" height="74" rx="22" fill="#F8FBFF" stroke="#E5EEF9"/>
+  <text x="94" y="437" fill="#334155" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">德育材料需要上传什么？</text>
+  <text x="520" y="437" fill="#94A3B8" font-size="22">↗</text>
+  <rect x="582" y="392" width="524" height="74" rx="22" fill="#F8FBFF" stroke="#E5EEF9"/>
+  <text x="612" y="437" fill="#334155" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">论文成果应该填到哪个模块？</text>
+  <text x="1058" y="437" fill="#94A3B8" font-size="22">↗</text>
+  <rect x="64" y="482" width="502" height="74" rx="22" fill="#EEF6FF" stroke="#BFDBFE"/>
+  <text x="94" y="527" fill="#2563EB" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">申请被驳回后应该怎么修改？</text>
+  <text x="520" y="527" fill="#2563EB" font-size="22">↗</text>
+  <rect x="582" y="482" width="524" height="74" rx="22" fill="#F8FBFF" stroke="#E5EEF9"/>
+  <text x="612" y="527" fill="#334155" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">志愿服务时长怎么认定？</text>
+  <text x="1058" y="527" fill="#94A3B8" font-size="22">↗</text>
+  <rect x="64" y="582" width="1042" height="294" rx="28" fill="#FFFFFF" stroke="#EAEFF5" filter="url(#soft)"/>
+  <text x="92" y="620" fill="#64748B" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">对话区</text>
+  <circle cx="108" cy="672" r="22" fill="url(#iconBg)"/>
+  <text x="96" y="680" fill="#FFFFFF" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">AI</text>
+  <rect x="142" y="646" width="658" height="62" rx="20" fill="#F8FAFC"/>
+  <text x="166" y="684" fill="#334155" font-size="22" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">你好，我是填报小助手。你可以问我综测填报规则、材料要求和审核说明。</text>
+  <rect x="390" y="732" width="624" height="62" rx="20" fill="#EEF6FF"/>
+  <text x="414" y="770" fill="#1E293B" font-size="22" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">德育申请被退回了，通常是什么原因？</text>
+  <circle cx="1048" cy="763" r="22" fill="#3B82F6"/>
+  <text x="1037" y="771" fill="#FFFFFF" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">你</text>
+  <rect x="88" y="818" width="994" height="120" rx="26" fill="#FFFFFF" stroke="#DCE7F3"/>
+  <text x="118" y="860" fill="#B0BAC7" font-size="22" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">描述你的需求，你想对当前网页内容做什么，我来帮你完成</text>
+  <line x1="112" y1="886" x2="1056" y2="886" stroke="#EDF2F7"/>
+  <text x="118" y="918" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">＋ 新话题</text>
+  <text x="258" y="918" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">🔗 插入链接</text>
+  <text x="438" y="918" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">📎 添加附件</text>
+  <text x="622" y="918" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">☺ 表情</text>
+  <circle cx="1034" cy="914" r="28" fill="#2F7CF6"/>
+  <text x="1022" y="924" fill="#FFFFFF" font-size="24">➤</text>
+  <rect x="1134" y="158" width="338" height="202" rx="28" fill="#FFFFFF" stroke="#EAEFF5" filter="url(#soft)"/>
+  <text x="1162" y="202" fill="#0F172A" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">能力说明</text>
+  <text x="1162" y="244" fill="#475569" font-size="20" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 综测规则解读</text>
+  <text x="1162" y="282" fill="#475569" font-size="20" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 材料要求说明</text>
+  <text x="1162" y="320" fill="#475569" font-size="20" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 模块归类建议</text>
+  <text x="1162" y="358" fill="#475569" font-size="20" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 审核问题提示</text>
+  <rect x="1134" y="382" width="338" height="202" rx="28" fill="#FFFFFF" stroke="#EAEFF5" filter="url(#soft)"/>
+  <text x="1162" y="426" fill="#0F172A" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">使用提示</text>
+  <text x="1162" y="468" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• AI 回答仅供参考，以学院最终审核为准。</text>
+  <text x="1162" y="506" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 后续可接流式输出、上下文记忆和知识库检索。</text>
+  <text x="1162" y="544" fill="#475569" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">• 可以先从推荐问题卡片开始提问。</text>
+  <rect x="1134" y="606" width="338" height="270" rx="28" fill="#FFFFFF" stroke="#EAEFF5" filter="url(#soft)"/>
+  <text x="1162" y="650" fill="#0F172A" font-size="24" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">快捷入口</text>
+  <rect x="1162" y="688" width="112" height="40" rx="20" fill="#E8F2FF"/>
+  <text x="1188" y="714" fill="#2563EB" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">规则查询</text>
+  <rect x="1162" y="744" width="112" height="40" rx="20" fill="#EAFBF8"/>
+  <text x="1188" y="770" fill="#0F9E83" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">材料清单</text>
+  <rect x="1162" y="800" width="112" height="40" rx="20" fill="#EEF2FF"/>
+  <text x="1188" y="826" fill="#4F46E5" font-size="18" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif">审核说明</text>
+</svg>
