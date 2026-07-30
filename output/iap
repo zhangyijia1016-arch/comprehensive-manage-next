@@ -1,0 +1,623 @@
+IAP 充值与下单主流程
+sequenceDiagram
+    autonumber
+    participant FE as 百+移动端
+    participant Power as 百+后端 power
+    participant Cashier as 收银台 /order/prePayToken
+    participant Asset as 资产中心
+
+    FE->>Power: createOrder(订单参数)
+    Power->>Power: OrderCreateChain 参数校验/余额校验/创建planinfo/支付
+    Power-->>FE: orderId + payStatus
+
+    alt payStatus != 1
+        FE-->>FE: 订单已支付成功或进入后续状态
+    else payStatus == 1 待支付/余额不足
+        FE->>Power: BaijiaAgentService.preOrder(amount, deviceType)
+        Power->>Power: 校验PASS用户、金额、deviceType、IAP参数、根据deviceType拆分skuQuantity
+        Power->>Cashier: POST /order/prePayToken(appKey,tpOrderId,totalAmount,tradeType,deviceType,assetsParam,rsaSign)
+        Cashier-->>Power: tradeToken/orderId/tpOrderId/timestamp/appKey
+        Power-->>FE: tradeToken + cashier order info
+        FE->>FE: 按 deviceType 拉起 iOS/鸿蒙 IAP 或现有支付能力
+        FE->>Asset: 端支付完成，资产充值入账（收银台/资产中心内部链路）
+        FE->>Power: assetOrderQuery/orderQuery 轮询充值状态
+        Power-->>FE: 充值状态
+        FE->>Power: 充值成功后再次 createOrder 或传入原 orderId 继续支付
+        Power->>Power: PayingHandler 从资产余额冻结/支付
+        Power-->>FE: payStatus=0/2 等最新状态
+    end
+
+
+
+
+
+
+
+预下单参数构造流程
+flowchart TD
+    A[BaijiaAgentService.preOrder] --> B{参数校验}
+    B -->|amount为空或userId为空| E1[返回参数错误]
+    B -->|非PASS用户| E2[返回不支持的用户类型]
+    B --> C{deviceType}
+    C -->|IOS| D1[tradeType=IOS_IAP\nassetsParam.productId=iosProductId\nassetsParam.skuQuantity=skuQuantity]
+    C -->|HARMONY| D2[tradeType=HARMONY_IAP\nassetsParam.productId=harmonyProductId]
+    C -->|ANDROID/WEBAPP/其他| D3[保持现有smartH5/APP逻辑\nassetsParam.productId=productId]
+    D1 --> F[assetsParam JSON 序列化]
+    D2 --> F
+    D3 --> F
+    F --> G[全量参数 RSA 签名]
+    G --> H[POST 收银台 /order/prePayToken]
+    H --> I{收银台code}
+    I -->|0| J[返回 tradeToken]
+    I -->|非0/异常| E3[返回预下单失败]
+
+
+余额查询分桶流程
+flowchart TD
+    A[BaijiaBasicService.getBalanceInfo/queryBalanceInfo] --> B[识别用户资金来源]
+    B -->|PASS/COIN| C[BaiPlusFinanceService.getPassBalance]
+    C --> D[CoinService.getBaiPlusCoinBalance]
+    D --> E[资产中心 /assets/open/baiplus/balance]
+    E --> F[返回 rechargeBalance/cashBalance/cashIosBalance/cashHarmonyBalance/otherBalance]
+    F --> G[扣减在投冻结金额]
+    G --> H[填充 BalanceInfoDto]
+    H --> I[对外返回总充值余额 + 分桶余额]
+
+    B -->|BAIHUI| J[getDirectBalance]
+    B -->|TIANQI| K[getUcBalance]
+
+
+
+版本说明
+版本
+状态
+修改内容
+修改人
+修改时间
+评审人/群
+评审时间
+V 0.1
+Draft
+新增
+袁延勇
+2026-06-09
+
+
+V 0.1
+Release
+定稿
+袁延勇
+2026-06-10
+https://infoflow.baidu.com/meeting/invite?id=e4ce0a612b4fbef92dfa2feb565f95ab
+
+
+
+
+
+
+
+
+
+1.需求背景
+百+IOS端及鸿蒙系统支持IAP支付
+背景
+百+移动端已支持通过收银台进行充值并完成下单。现需进一步支持 iOS IAP 与鸿蒙 IAP 支付，使移动端在余额不足时可按端平台拉起对应支付能力，并在百+余额、收支明细中区分 PC&安卓、iOS、鸿蒙等充值来源。
+收益
+* 提升用户下单体验并进一步扩大百+客户规模。 量化收益需PM @于春荣进一步补充。
+
+
+2.业务概述
+* 百+下单支持IAP IOS和鸿蒙端支付。
+
+3.需求分析
+1. 预下单接口支持 IAP 场景参数透传：
+
+    * assetsParam 增加 iOS、鸿蒙的 productId。
+    * iOS 增加 skuQuantity 数量。
+    * 充值预下单仍调用收银台 /order/prePayToken接口。
+
+2. 查询余额接口支持充值余额按来源拆分：
+
+    * /assets/open/baiplus/balance 新增返回 cashBalance、cashIosBalance、cashHarmonyBalance。
+    * 百+后端扩展 DTO 并对外透出，保留原 rechargeBalance 兼容既有逻辑。
+
+3. 查收支记录接口支持 IAP 相关操作类型：
+
+    * /assets/open/baiplus/listrecord 的 operateTypes 增加 27、121。
+
+4. sugar看板兼容新的充值来源
+
+    * 收银台明细新增来源字段 sugar看板  
+    * 收银台计收查询看板新增充值金额、充值来源、渠道服务费。 收银台计收查询 
+
+4.系统设计
+4.1 总体方案
+本次采用“扩展参数、保留兼容”的方案：
+1. 百+预下单 API 扩展端类型。
+2. SAL 层根据 deviceType 构造不同 tradeType/assetsParam：
+
+    * 安卓/WEB端：保持 smartH5 或现有端支付逻辑。
+    * iOS：使用 iOS IAP 对应的 productId/skuQuantity。
+    * 鸿蒙：使用鸿蒙对应的 productId。
+
+3. 收银台返回 tradeToken 后端原样返回给前端。
+4. 端支付成功后，仍按现有流程轮询充值状态并重新下单/继续下单。
+5. 余额查询 DTO 增加分桶余额字段；现有下单逻辑继续使用 rechargeBalance 总额，端上展示或支付渠道选择可使用分桶字段。
+6. 收支记录查询，目前类型为15,9,11,13,19,45,6,10,12，扩展类型 27、121，保持对收银台 operateTypes 的透传。同时增加逻辑，若前端未传入，后端补全部type，即15,9,11,13,19,45,6,10,12,27,121
+
+4.2 核心流程图
+4.2.1 IAP 充值与下单主流程
+sequenceDiagram
+    autonumber
+    participant FE as 百+移动端
+    participant Power as 百+后端 power
+    participant Cashier as 收银台 /order/prePayToken
+    participant Asset as 资产中心
+
+    FE->>Power: createOrder(订单参数)
+    Power->>Power: OrderCreateChain 参数校验/余额校验/创建planinfo/支付
+    Power-->>FE: orderId + payStatus
+
+    alt payStatus != 1
+        FE-->>FE: 订单已支付成功或进入后续状态
+    else payStatus == 1 待支付/余额不足
+        FE->>Power: BaijiaAgentService.preOrder(amount, deviceType)
+        Power->>Power: 校验PASS用户、金额、deviceType、IAP参数、根据deviceType拆分skuQuantity
+        Power->>Cashier: POST /order/prePayToken(appKey,tpOrderId,totalAmount,tradeType,deviceType,assetsParam,rsaSign)
+        Cashier-->>Power: tradeToken/orderId/tpOrderId/timestamp/appKey
+        Power-->>FE: tradeToken + cashier order info
+        FE->>FE: 按 deviceType 拉起 iOS/鸿蒙 IAP 或现有支付能力
+        FE->>Asset: 端支付完成，资产充值入账（收银台/资产中心内部链路）
+        FE->>Power: assetOrderQuery/orderQuery 轮询充值状态
+        Power-->>FE: 充值状态
+        FE->>Power: 充值成功后再次 createOrder 或传入原 orderId 继续支付
+        Power->>Power: PayingHandler 从资产余额冻结/支付
+        Power-->>FE: payStatus=0/2 等最新状态
+    end
+4.2.2 预下单参数构造流程
+flowchart TD
+    A[BaijiaAgentService.preOrder] --> B{参数校验}
+    B -->|amount为空或userId为空| E1[返回参数错误]
+    B -->|非PASS用户| E2[返回不支持的用户类型]
+    B --> C{deviceType}
+    C -->|IOS| D1[tradeType=IOS_IAP\nassetsParam.productId=iosProductId\nassetsParam.skuQuantity=skuQuantity]
+    C -->|HARMONY| D2[tradeType=HARMONY_IAP\nassetsParam.productId=harmonyProductId]
+    C -->|ANDROID/WEBAPP/其他| D3[保持现有smartH5/APP逻辑\nassetsParam.productId=productId]
+    D1 --> F[assetsParam JSON 序列化]
+    D2 --> F
+    D3 --> F
+    F --> G[全量参数 RSA 签名]
+    G --> H[POST 收银台 /order/prePayToken]
+    H --> I{收银台code}
+    I -->|0| J[返回 tradeToken]
+    I -->|非0/异常| E3[返回预下单失败]
+skuQuantity生成逻辑为：amount / 基本商品单位，除不尽时作何处理，小数位数等。 @于春荣 TODO
+4.2.3 余额查询分桶流程
+flowchart TD
+    A[BaijiaBasicService.getBalanceInfo/queryBalanceInfo] --> B[识别用户资金来源]
+    B -->|PASS/COIN| C[BaiPlusFinanceService.getPassBalance]
+    C --> D[CoinService.getBaiPlusCoinBalance]
+    D --> E[资产中心 /assets/open/baiplus/balance]
+    E --> F[返回 rechargeBalance/cashBalance/cashIosBalance/cashHarmonyBalance/otherBalance]
+    F --> G[扣减在投冻结金额]
+    G --> H[填充 BalanceInfoDto]
+    H --> I[对外返回总充值余额 + 分桶余额]
+
+    B -->|BAIHUI| J[getDirectBalance]
+    B -->|TIANQI| K[getUcBalance]
+这块无相关页面/使用场景，逻辑上暂不做改动。
+
+5.需求实现
+5.1 预下单
+接口：BaijiaAgentService.preOrder
+现有入参：
+public class OrderAgentPreOrderRequest {
+    private Integer amount;
+    private String deviceType; // ANDROID/IOS/HARMONY/WEBAPP
+}
+
+说明：
+1. amount 仍以分为单位。
+2. deviceType=IOS 时：
+
+    * assetsParam.productId 使用 iOS 商品 ID。
+    * assetsParam.skuQuantity 使用端上传入amount / 基础商品单价。
+
+3. deviceType=HARMONY 时：
+
+    * assetsParam.productId 使用鸿蒙商品 ID。 根据金额找productId
+
+4. deviceType=ANDROID/WEBAPP 保持现有逻辑。
+5. 由PM申请IOS和HARMONY的productId
+
+5.2 收银台 /order/prePayToken 
+当前关键请求字段：
+字段
+当前逻辑
+IAP 扩展
+appKey
+trade.coin.appKey
+不变
+tpOrderId
+当前时间戳生成
+不变
+dealTitle
+充值百+
+不变
+dealId
+trade.coin.dealId
+不变
+totalAmount
+充值金额（分）
+不变
+timestamp
+当前时间
+不变
+tradeType
+当前固定 smartH5
+不变
+deviceType
+WEBAPP/ANDROID/IOS/HARMONY
+按前端实际平台传入，以WEBAPP兜底
+userId/userType
+passId/passId
+不变
+notifyUrl
+trade.coin.payNotifyUrl
+不变
+assetsParam
+productId/notifyUrl
+扩展 iOS/鸿蒙 productId、iOS skuQuantity
+rsaSign
+对全量参数签名
+扩展字段参与签名
+5.3 余额查询
+后端调用：/assets/open/baiplus/balance
+SAL DTO 扩展：CoinBalanceResponse.Data
+public static class Data {
+    private Long uid;
+    private String appKey;
+    private Long rechargeBalance;
+    private Long cashBalance;
+    private Long cashIosBalance;
+    private Long cashHarmonyBalance;
+    private Long otherBalance;
+}
+API DTO 扩展：BalanceInfoDto
+public class BalanceInfoDto {
+    private Long uid;
+    private String appKey;
+    private String batchTime;
+    private Integer remainCount;
+    private Long rechargeBalance;
+    private Long cashBalance;
+    private Long cashIosBalance;
+    private Long cashHarmonyBalance;
+    private Long otherBalance;
+    private Long fundsBalance;
+}
+兼容规则：
+1. rechargeBalance 保持对外字段不变，但语义更新为“充值总余额”。
+2. cashBalance/cashIosBalance/cashHarmonyBalance 用于问题排查。
+3. 当前 BaiPlusFinanceServiceImpl.getPassBalance 会计算：
+
+    * realFundsBalance = fundsBalance - duringFundsBalance
+    * realAssetBalance = rechargeBalance + otherBalance - duringAssetBalance
+
+4. 保留现有 rechargeBalance 作为总充值余额参与 realAssetBalance 计算，避免影响下单扣费。
+5. 如后续要按平台严格隔离消费，则需要进一步在冻结/扣费记录中记录资产来源，本次不做。
+
+5.4 收支记录
+后端调用：/assets/open/baiplus/listrecord
+当前 BaijiaBasicServiceImpl.baiplusCoinDetail 已将前端 request.type 映射到 CoinRequest.operateTypes 并透传给收银台。
+本次变更：
+1. 前端或调用方可传入新增操作类型：27、121。
+2. 后端无需对枚举做强限制时，仅需保证透传即可。
+3. 后端增加不传时，以全部枚举作为兜底。即15,9,11,13,19,45,6,10,12,27,121
+4. 后端返回 CoinDetailDto.operateCode/operateType/change/balance/status/time/commandId 保持不变。
+
+
+@袁延勇后端内部接口兼容
+5.5 sugar看板兼容新的充值来源
+* 收银台明细新增来源字段 sugar看板  依赖收银台离线文件
+* 收银台计收查询看板新增充值金额、充值来源、渠道服务费。 收银台计收查询 依赖收银台离线文件
+
+待明确离线文件schema @李伟男
+6.其他设计
+本节包含数据库设计、接口设计、资源预估等部分
+6.1 数据库设计
+无
+6.2 接口设计
+同时提供新接口，功能为查询支付信息，见API文档
+6.3 外部依赖
+依赖项
+待办
+文档
+接口人
+状态
+afs文件schema
+
+
+伟男
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+7、存量功能回归
+文件页：baidu/bjh/cms-ecosystem  *master
+文件页：baidu/bjh-server-go/ecosystem  *master
+结论：
+需要回归的功能：父账号与子账号的币转赠和回退；其余接口power调用可以覆盖
+余额、充值、收支明细已经逻辑有问题，建议迁移
+零、MCN平台依赖环境
+历史测试文档：MCN平台百+模块优化——测试记录
+余额、转赠、收支明细：
+mcn平台前端（bjhmcn）
+[图片]
+更改cms-ecosystem的域名，打到线下
+->
+cms-ecosystem ->ecosystem
+一、百+币资产相关
+路由名
+功能
+Service
+下游依赖
+使用场景
+本次是否回归
+备注
+asset_balance
+获取百+币余额（充值余额 + 其他余额 + 过期信息）
+AccountService.Balance
+交易中台 (tradeapi.Balance + tradeapi.ExpRemain)
+mcn平台查余额
+[图片]
+
+查询余额接口与百+有逻辑diff，存在问题。
+例如百+下单后，这里的余额不变
+asset_record
+查询百+币明细记录（分页）
+AccountService.Record
+交易中台 (tradeapi.Record)
+mcn平台收支明细
+[图片]
+
+百家号代码没升级，感知不到ios充值记录，建议跳到jiare
+asset_transfer
+转赠百+币给子账号
+TradeService.Transfer
+1. 用户服务 (global.UserInfo.GetUserInfo 校验父子关系)
+2. 全知平台 (Omniscience.GetSpecifiedRights 校验百+权益)
+3. 交易中台 (tradeapi.Transfer)
+mcn平台父账号转赠子账号
+[图片]
+是
+
+asset_consume
+投放消费百+币
+TradeService.Consume
+交易中台 (tradeapi.Consume)
+power计收调用
+是
+
+asset_refund
+保量未达标部分退币
+TradeService.Refund
+交易中台 (tradeapi.Refund)
+power调用（现在已不再调用）
+是
+
+asset_order
+充值预下单（含商品校验 & RSA签名）
+TradeService.Order
+交易中台 (tradeapi.Product + tradeapi.Order)
+power PC/安卓调用下单
+是
+
+asset_order_query
+查询充值订单结果
+TradeService.OrderQuery
+交易中台 (tradeapi.OrderQuery)
+power PC/安卓/ios查询充值结果
+是
+
+asset_order_refund
+申请订单退款（客服退款）
+TradeService.OrderRefund
+交易中台 (tradeapi.OrderRefund)
+无
+否
+
+二、商户/充值相关
+路由名
+功能
+Service
+下游依赖
+使用场景
+本次是否回归
+备注
+asset_product
+获取可充值的商品列表（附赠币数据）
+MerchantService.Product
+1. 交易中台 (tradeapi.Product)
+2. 用户服务 (user.GetUserInfo 判断是否MCN父账号)
+3. 全知平台 (Omniscience 判断是否可赠币)
+4. MCN服务 (ral service_mcn /getOrgInfo 判断是否自建MCN)
+mcn平台充值
+[图片]
+否
+线上疯狂报错。建议迁移到jiare
+asset_present_count
+查询用户赠送币数量（已下线，直接返回0）
+MerchantService.Present
+无下游调用（逻辑已注释）
+无
+否
+
+asset_invest_notify
+充值成功回调通知
+MerchantService.Notify
+1. 本地验签 (tradeapi.TradeSinger.CheckSign)
+2. 内部调 Present() 计算赠币
+3. 交易中台 (tradeapi.Present 发放赠币)
+收银台调用百家号，目前默认返回true
+否
+
+三、MCN 相关
+路由名
+功能
+Service
+下游依赖
+使用场景
+本次是否回归
+备注
+asset_mcn_bp
+监听 MCN 父子解绑消息，自动归还子账号的币给父账号
+McnAccount.Listen
+交易中台 (tradeapi.Back 归还币)
+解绑退还币
+是
+直接调用ecosystem接口模拟
+asset_can_transfer_account
+获取可以转赠的子账号列表及其余额
+McnAccount.TransferAccount
+1. 用户服务 (ral service_user /user/mgetUserInfo 或 /bjhuser/finance/getOrgRelatedListByAppId)
+2. 全局 UserInfo (global.UserInfo.GetUserInfo)
+3. 交易中台 (tradeapi.Balance 批量查余额)
+[图片]
+否
+
+四、优惠券相关（无需关注）
+路由名
+功能
+Service
+下游依赖
+asset_coupon_add
+创建优惠券(V0)
+CouponService.CouponAdd
+优惠券平台 (couponapi.Add)
+asset_coupon_add_v1
+创建优惠券(V1, 增加ext_info字段)
+CouponService.CouponAddV1
+优惠券平台 (couponapi.AddV1)
+asset_coupon_send
+发放优惠券(普通模式)
+CouponService.CouponSend
+优惠券平台 (couponapi.Send)
+asset_coupon_strict_send
+发放优惠券(严格模式)
+CouponService.CouponStrictSend
+优惠券平台 (couponapi.StrictSend)
+asset_coupon_use
+核销使用优惠券
+CouponService.CouponUse
+优惠券平台 (couponapi.Use)
+asset_coupon_return
+退回优惠券
+CouponService.CouponReturn
+优惠券平台 (couponapi.Return)
+asset_coupon_get
+根据batch_id获取优惠券详情
+CouponService.CouponGet
+优惠券平台 (couponapi.Get)
+asset_user_coupons
+用户持有的优惠券列表
+CouponService.UserCoupon
+优惠券平台 (couponapi.UserCoupon)
+五、运营发币 - 业务线管理（无需关注）
+路由名
+功能
+Service
+下游依赖
+asset_create_business_line
+创建业务线
+BusinessLineService.Create
+MySQL (business_lines 表写入)
+asset_update_business_line
+修改业务线名称/操作人
+BusinessLineService.Update
+MySQL (business_lines 表更新)
+asset_get_business_line
+获取业务线列表（按权限过滤）
+BusinessLineService.All
+MySQL (business_lines 表查询)
+asset_summary
+业务线百+币统计汇总
+BusinessLineService.Summary
+1. MySQL (权限校验)
+2. 交易中台 (tradeapi.Summary)
+六、运营发币 - 分配作业（无需关注）
+路由名
+功能
+Service
+下游依赖
+asset_create_distribution_job
+创建分配百+币作业（批量）
+DistributionJobService.Create
+MySQL (distribution_jobs + distribution_records 写入)
+asset_get_distribution_job
+获取分配作业列表（分页）
+DistributionJobService.List
+MySQL (distribution_jobs 查询)
+asset_allocate
+给业务线分配百+币
+DistributionJobService.Allocate
+1. MySQL (查询业务线)
+2. 交易中台 (tradeapi.AllocateBudget)
+asset_take_back
+收回业务线百+币
+DistributionJobService.TakeBack
+1. MySQL (查询业务线)
+2. 交易中台 (tradeapi.TakeBack)
+asset_distribute_to_user
+从业务线转账给个人用户
+DistributionToUserService.DistributeToUser
+1. 用户服务 (user.GetUserInfo)
+2. MySQL (查业务线 + 查/写record, 带事务)
+3. 交易中台 (tradeapi.Allocate 定向转帐)
+七、运营发币 - 分配记录（无需关注）
+路由名
+功能
+Service
+下游依赖
+asset_get_distribution_list
+查询作者维度分配汇总
+DistributionRecordService.List
+1. 用户服务 (ral service_user /user/mgetUserInfo 或 user.GetUserInfo)
+2. 交易中台 (tradeapi.UidUsed)
+asset_get_distribution_record
+查询作者维度的分配历史记录
+DistributionRecordService.Record
+MySQL (distribution_records 查询)
+asset_get_distribution_job_record
+下载某个作业下的明细记录
+DistributionRecordService.JobList
+MySQL (distribution_records 按 job_id 查询)
+asset_create_distribution_present
+通过充值赠送通道发放不过期的币
+DistributionRecordService.Create
+1. 用户服务 (user.GetUserInfo)
+2. MySQL (去重检查 + record写入)
+3. 交易中台 (tradeapi.Present 发放赠币)
+4. 站内信 (Notification.PushNoticeByTpl)
+asset_get_distribution_present
+获取充值赠送通道的赠币记录列表
+DistributionRecordService.GetDistributionPresent
+1. 用户服务 (ral service_user, 可选按名字搜索)
+2. MySQL (distribution_records type=2 查询)
+asset_main_account_recharge
+主账户直接充值
+recharge.Service.Recharge
+交易中台 (tradeapi.MainAccountRecharge)
+
